@@ -1,0 +1,12 @@
+http:
+  port: 8080
+  write_timeout: 10s
+  read_timeout: 10s
+
+postgres:
+  username: postgres
+  password: postgres
+  host: localhost
+  port: 5432
+  db_name: backend
+  ssl_mode: disable
