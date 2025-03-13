@@ -13,5 +13,5 @@ jobs:
       - run: echo "${{ github.repository }} was cloned to the runner"
       - name: list files
         run: |
-          ls ${{ github.workflow }}
+          ls ${{ github.workspace }}
       - run: echo "${{ job.status }}"
