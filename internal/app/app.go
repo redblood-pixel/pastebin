@@ -16,6 +16,8 @@ func Run(configPath string) {
 
 	slog.Info("Server started")
 
+	slog.Info("linter testing")
+
 	// TODO db conn
 
 	// TODO repository
