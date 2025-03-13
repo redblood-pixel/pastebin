@@ -1,0 +1,17 @@
+name: Github Actions Demo
+run-name: ${{ github.actor }} is creating out ga
+on: [push]
+jobs:
+  Explore-Github-Actions:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "demo actions triggered by ${{ github.event_name }}"
+      - run: echo "running on ${{ runner.os }}
+      - run: echo "branch - ${{ github.ref }} and repo - ${{ github.repository }}"
+      - name: checkout repo code
+        uses: actions/checkout@v4
+      - run: echo "${{ github.repository }} was cloned to the runner"
+      - name: list files
+        run: |
+          ls ${{ github.workflow }}
+      - run: echo "${{ job.status }}"
