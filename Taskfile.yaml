@@ -1,0 +1,6 @@
+version: '3'
+
+tasks:
+  dev-up:
+    cmds:
+      - docker compose -f infra/postgres.yaml up -d

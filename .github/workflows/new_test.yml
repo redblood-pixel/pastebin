@@ -15,5 +15,7 @@ jobs:
           echo "Also reqieres strong backend knowledges"
       - name: setup go
         uses: actions/setup-go@v5
+        with:
+          go-version: 1.24
       - run: "echo ${{ job.status }}"
       

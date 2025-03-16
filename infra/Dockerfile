@@ -1,4 +1,4 @@
-FROM FROM golang:1.21-alpine 
+FROM FROM golang:1.24-alpine 
 
 RUN curl -s https://packagecloud.io/install/repositories/golang-migrate/migrate/script.deb.sh | sudo bash
 RUN apt-get update
