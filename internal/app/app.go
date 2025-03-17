@@ -14,12 +14,14 @@ import (
 	"github.com/redblood-pixel/pastebin/internal/config"
 	"github.com/redblood-pixel/pastebin/internal/handler"
 	"github.com/redblood-pixel/pastebin/internal/server"
+	"github.com/redblood-pixel/pastebin/internal/service"
 	logger "github.com/redblood-pixel/pastebin/pkg/logger"
 	"github.com/redblood-pixel/pastebin/pkg/postgres"
 )
 
 func Run(configPath string) {
 
+	// Configs, Logger and DB connection
 	cfg := config.MustLoad(configPath)
 
 	logger.Init(cfg.Env)
@@ -37,18 +39,11 @@ func Run(configPath string) {
 	if err != nil {
 		return
 	}
-	q := db.New(conn)
-	// TODO repository
 
-	// TODO service
-
-	// TODO handler
-
-	// TODO run server
-
-	// TODO graceful shutdown
-	handler := handler.New(nil)
-
+	// Generated DB querier, service, handler and server
+	querier := db.New(conn)
+	service := service.New(querier)
+	handler := handler.New(service)
 	srv := server.New(&cfg.HTTP, handler.Init())
 
 	go func() {
@@ -56,8 +51,8 @@ func Run(configPath string) {
 			logger.Error("Error starting server ", "error", err.Error())
 		}
 	}()
-	// slog.Info("Server is started")
 
+	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
@@ -70,9 +65,8 @@ func Run(configPath string) {
 	if err := srv.Stop(ctx); err != nil {
 		logger.Error("Error stoping server", "error", err.Error())
 	}
-	if err := db.Close(dbctx); err != nil {
+	if err := conn.Close(dbctx); err != nil {
 		logger.Error("Error closing postgres connection:", "error", err.Error())
 	}
 	logger.Info("Server stoped")
-	// TODO close db connection
 }

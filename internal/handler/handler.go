@@ -6,8 +6,6 @@ import (
 )
 
 type Handler struct {
-	// logger
-	// service
 	services *service.Service
 }
 
