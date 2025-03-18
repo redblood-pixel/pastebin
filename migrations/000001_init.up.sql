@@ -4,6 +4,7 @@ create table users(
     id serial primary key,
     name varchar(64) not null,
     email varchar(256) not null,
+    password_hashed varchar(256) not null,
     created_at timestamp not null default now(),
     last_login timestamp not null default now()
 );

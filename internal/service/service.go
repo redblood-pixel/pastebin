@@ -1,6 +1,10 @@
 package service
 
-import "github.com/redblood-pixel/pastebin/db"
+import (
+	"context"
+
+	"github.com/redblood-pixel/pastebin/db"
+)
 
 type Service struct {
 	// Set of service interfaces
@@ -9,6 +13,7 @@ type Service struct {
 }
 
 type Users interface {
+	Create(ctx context.Context, name, email, password string) (int, error)
 }
 
 type Pastes interface {
@@ -16,7 +21,7 @@ type Pastes interface {
 
 func New(querier *db.Queries) *Service {
 	return &Service{
-		Users: UserSerivce{
+		Users: &UserSerivce{
 			db: querier,
 		},
 		Pastes: PastesService{

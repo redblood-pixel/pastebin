@@ -47,7 +47,7 @@ func Run(configPath string) {
 	srv := server.New(&cfg.HTTP, handler.Init())
 
 	go func() {
-		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		if err := srv.Start(); !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("Error starting server ", "error", err.Error())
 		}
 	}()
