@@ -11,7 +11,6 @@ type UserSerivce struct {
 }
 
 func (u *UserSerivce) Create(ctx context.Context, name, email, password string) (int, error) {
-	// some create logic
 	id, err := u.db.CreateUser(ctx, db.CreateUserParams{
 		Name:           name,
 		Email:          email,

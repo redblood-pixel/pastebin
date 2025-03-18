@@ -8,7 +8,7 @@ import (
 )
 
 type Server struct {
-	http.Server
+	httpServer http.Server
 }
 
 type Config struct {
@@ -19,7 +19,7 @@ type Config struct {
 
 func New(cfg *Config, h http.Handler) *Server {
 	return &Server{
-		http.Server{
+		httpServer: http.Server{
 			Addr:         ":" + strconv.Itoa(cfg.Port),
 			Handler:      h,
 			ReadTimeout:  cfg.ReadTimeout,
@@ -29,9 +29,9 @@ func New(cfg *Config, h http.Handler) *Server {
 }
 
 func (s *Server) Start() error {
-	return s.ListenAndServe()
+	return s.httpServer.ListenAndServe()
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	return s.Shutdown(ctx)
+	return s.httpServer.Shutdown(ctx)
 }
