@@ -1,12 +1,14 @@
+env: dev
+
 http:
   port: 8080
   write_timeout: 10s
   read_timeout: 10s
 
 postgres:
-  username: postgres
-  password: postgres
+  username: daniluk_admin
+  password: mimimidi1
   host: localhost
-  port: 5432
-  db_name: backend
+  port: 5436
+  db_name: pastebin_backend
   ssl_mode: disable

@@ -1,0 +1,22 @@
+version: '3'
+
+vars:
+  FIND_POSTGRES: $(docker ps | grep -i postgres:latest | awk '{print $1}')
+
+tasks:
+  dev-up:
+    cmds:
+      - docker compose -f infra/postgres.yaml up -d
+  
+  dev-postgres-attach:
+    cmds:
+      - echo {{.FIND_POSTGRES}}
+      - docker attach {{.FIND_POSTGRES}}
+  
+  dev-postgres-connect:
+    cmds:
+      - docker exec -it {{.FIND_POSTGRES}} /bin/sh
+
+  dev-rm-volumes:
+    cmds:
+      - docker volume rm $(docker volume ls | grep -i infra)

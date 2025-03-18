@@ -1,0 +1,38 @@
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  db:
+    driver: bridge
+
+services:
+  postgres:
+    container_name: past_postgr
+    image: postgres:latest
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: pastebin_backend
+      POSTGRES_USER: daniluk_admin
+      POSTGRES_PASSWORD: mimimidi1
+    networks:
+      - db
+  
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4:7.2
+    environment:
+      PGADMIN_DEFAULT_EMAIL: danil@ya.ru
+      PGADMIN_DEFAULT_PASSWORD: 1234
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    networks:
+      - db
+    
