@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.28.0
 
-package db
+package postgres_queries
 
 import (
 	"database/sql/driver"
@@ -68,7 +68,7 @@ type User struct {
 	ID             int32
 	Name           string
 	Email          string
+	PasswordHashed string
 	CreatedAt      pgtype.Timestamp
 	LastLogin      pgtype.Timestamp
-	PasswordHashed string
 }

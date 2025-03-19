@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/redblood-pixel/pastebin/db"
+	"github.com/redblood-pixel/pastebin/pkg/postgres_queries"
 )
 
 type Service struct {
@@ -19,7 +19,7 @@ type Users interface {
 type Pastes interface {
 }
 
-func New(querier *db.Queries) *Service {
+func New(querier *postgres_queries.Queries) *Service {
 	return &Service{
 		Users: &UserSerivce{
 			db: querier,

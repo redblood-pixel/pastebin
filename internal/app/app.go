@@ -10,13 +10,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/redblood-pixel/pastebin/db"
 	"github.com/redblood-pixel/pastebin/internal/config"
 	"github.com/redblood-pixel/pastebin/internal/handler"
 	"github.com/redblood-pixel/pastebin/internal/server"
 	"github.com/redblood-pixel/pastebin/internal/service"
 	logger "github.com/redblood-pixel/pastebin/pkg/logger"
 	"github.com/redblood-pixel/pastebin/pkg/postgres"
+	"github.com/redblood-pixel/pastebin/pkg/postgres_queries"
 )
 
 func Run(configPath string) {
@@ -41,7 +41,7 @@ func Run(configPath string) {
 	}
 
 	// Generated DB querier, service, handler and server
-	querier := db.New(conn)
+	querier := postgres_queries.New(conn)
 	service := service.New(querier)
 	handler := handler.New(service)
 	srv := server.New(&cfg.HTTP, handler.Init())
