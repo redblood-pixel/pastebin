@@ -3,8 +3,18 @@ package service
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/redblood-pixel/pastebin/internal/domain"
 	"github.com/redblood-pixel/pastebin/pkg/postgres_queries"
+	"github.com/redblood-pixel/pastebin/pkg/tokenutil"
 )
+
+type Users interface {
+	CreateUser(ctx context.Context, name, email, password string) (domain.Tokens, error)
+}
+
+type Pastes interface {
+}
 
 type Service struct {
 	// Set of service interfaces
@@ -12,20 +22,17 @@ type Service struct {
 	Pastes
 }
 
-type Users interface {
-	Create(ctx context.Context, name, email, password string) (int, error)
+type Deps struct {
+	Querier      *postgres_queries.Queries
+	PostgresConn *pgx.Conn
+	TokenManager *tokenutil.TokenManager
 }
 
-type Pastes interface {
-}
-
-func New(querier *postgres_queries.Queries) *Service {
+func New(deps Deps) *Service {
 	return &Service{
-		Users: &UserSerivce{
-			db: querier,
-		},
+		Users: NewUserService(deps.Querier, deps.PostgresConn, deps.TokenManager),
 		Pastes: PastesService{
-			db: querier,
+			db: deps.Querier,
 		},
 	}
 }

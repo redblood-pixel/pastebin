@@ -6,12 +6,16 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/redblood-pixel/pastebin/internal/server"
 	"github.com/redblood-pixel/pastebin/pkg/postgres"
+	"github.com/redblood-pixel/pastebin/pkg/tokenutil"
 )
 
 type Config struct {
-	Env      string          `yaml:"env"`
-	HTTP     server.Config   `yaml:"http"`
-	Postgres postgres.Config `yaml:"postgres"`
+	Env      string           `yaml:"env"`
+	HTTP     server.Config    `yaml:"http"`
+	Postgres postgres.Config  `yaml:"postgres"`
+	JWT      tokenutil.Config `yaml:"jwt"`
+
+	PasswordSalt string `yaml:"password_salt"`
 }
 
 func MustLoad(configPath string) *Config {

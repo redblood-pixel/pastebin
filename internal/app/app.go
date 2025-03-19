@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,25 +13,19 @@ import (
 	"github.com/redblood-pixel/pastebin/internal/handler"
 	"github.com/redblood-pixel/pastebin/internal/server"
 	"github.com/redblood-pixel/pastebin/internal/service"
-	logger "github.com/redblood-pixel/pastebin/pkg/logger"
+	"github.com/redblood-pixel/pastebin/pkg/logger"
 	"github.com/redblood-pixel/pastebin/pkg/postgres"
 	"github.com/redblood-pixel/pastebin/pkg/postgres_queries"
+	"github.com/redblood-pixel/pastebin/pkg/tokenutil"
 )
 
 func Run(configPath string) {
 
 	// Configs, Logger and DB connection
 	cfg := config.MustLoad(configPath)
-
 	logger.Init(cfg.Env)
 
 	logger := logger.WithSource("api.Run")
-
-	logger.Info(
-		"config",
-		slog.Any("config", cfg),
-	)
-	logger.Info("Server started")
 
 	dbctx := context.Background()
 	conn, err := postgres.New(dbctx, &cfg.Postgres)
@@ -40,9 +33,18 @@ func Run(configPath string) {
 		return
 	}
 
-	// Generated DB querier, service, handler and server
+	// Pkg
+	tokenManager := tokenutil.New(&cfg.JWT)
 	querier := postgres_queries.New(conn)
-	service := service.New(querier)
+
+	//Service Dependencies
+	deps := service.Deps{
+		Querier:      querier,
+		PostgresConn: conn,
+		TokenManager: tokenManager,
+	}
+
+	service := service.New(deps)
 	handler := handler.New(service)
 	srv := server.New(&cfg.HTTP, handler.Init())
 
@@ -51,6 +53,7 @@ func Run(configPath string) {
 			logger.Error("Error starting server ", "error", err.Error())
 		}
 	}()
+	logger.Info("Server started")
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)

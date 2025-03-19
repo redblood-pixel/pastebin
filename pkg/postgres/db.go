@@ -33,6 +33,7 @@ func New(ctx context.Context, cfg *Config) (*pgx.Conn, error) {
 		logger.Error("error while pinging db", "error", err.Error())
 		return nil, err
 	}
+	logger.Info("postgres connected and pinged")
 
 	return conn, nil
 }

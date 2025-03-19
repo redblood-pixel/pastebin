@@ -1,5 +1,10 @@
 env: dev
 
+jwt:
+  access_token_ttl: 60m
+  refresh_token_ttl: 168h
+  signing_key: HxElqFg0/pr@3cVO*sAdMt@n
+
 http:
   port: 8080
   write_timeout: 10s

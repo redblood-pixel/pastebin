@@ -7,7 +7,9 @@ package postgres_queries
 import (
 	"database/sql/driver"
 	"fmt"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -57,11 +59,18 @@ type Paste struct {
 	ID              int32
 	Title           string
 	ContentLocation string
-	CreatedAt       pgtype.Timestamp
-	ExpiresAt       pgtype.Timestamp
+	CreatedAt       time.Time
+	ExpiresAt       time.Time
 	Visibility      AccessType
-	LastVisited     pgtype.Timestamp
+	LastVisited     time.Time
 	UserID          pgtype.Int4
+}
+
+type Token struct {
+	ID        uuid.UUID
+	UserID    int32
+	IssuedAt  time.Time
+	ExpiresAt time.Time
 }
 
 type User struct {
@@ -69,6 +78,6 @@ type User struct {
 	Name           string
 	Email          string
 	PasswordHashed string
-	CreatedAt      pgtype.Timestamp
-	LastLogin      pgtype.Timestamp
+	CreatedAt      time.Time
+	LastLogin      time.Time
 }

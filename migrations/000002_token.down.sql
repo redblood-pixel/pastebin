@@ -1,0 +1,2 @@
+DROP TABLE token;
+DROP EXTENSION pgcrypto;

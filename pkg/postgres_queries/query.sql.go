@@ -7,7 +7,27 @@ package postgres_queries
 
 import (
 	"context"
+	"time"
+
+	"github.com/google/uuid"
 )
+
+const createSession = `-- name: CreateSession :one
+INSERT INTO tokens (user_id, issued_at, expires_at) VALUES($1, $2, $3) RETURNING id
+`
+
+type CreateSessionParams struct {
+	UserID    int32
+	IssuedAt  time.Time
+	ExpiresAt time.Time
+}
+
+func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createSession, arg.UserID, arg.IssuedAt, arg.ExpiresAt)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (name, email, password_hashed) VALUES ($1, $2, $3) RETURNING id
