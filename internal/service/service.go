@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/redblood-pixel/pastebin/internal/domain"
 	"github.com/redblood-pixel/pastebin/pkg/postgres_queries"
@@ -11,6 +12,8 @@ import (
 
 type Users interface {
 	CreateUser(ctx context.Context, name, email, password string) (domain.Tokens, error)
+	SignIn(ctx context.Context, nameOrEmail, password_hashed string) (domain.Tokens, error)
+	Refresh(ctx context.Context, refresh uuid.UUID) (domain.Tokens, error)
 }
 
 type Pastes interface {

@@ -3,15 +3,18 @@ package handler
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/redblood-pixel/pastebin/internal/service"
+	"github.com/redblood-pixel/pastebin/pkg/tokenutil"
 )
 
 type Handler struct {
 	services *service.Service
+	tm       *tokenutil.TokenManager
 }
 
-func New(services *service.Service) *Handler {
+func New(services *service.Service, tm *tokenutil.TokenManager) *Handler {
 	return &Handler{
 		services: services,
+		tm:       tm,
 	}
 }
 

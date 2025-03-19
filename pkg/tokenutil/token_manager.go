@@ -20,7 +20,7 @@ type TokenManager struct {
 }
 
 type JWTCustomClaims struct {
-	userID int
+	UserID int
 	jwt.RegisteredClaims
 }
 
@@ -41,7 +41,7 @@ func New(cfg *Config) *TokenManager {
 
 func (tm *TokenManager) CreateAccessToken(userID int) (string, error) {
 	claims := JWTCustomClaims{
-		userID: userID,
+		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tm.accessTokenTTL)),
@@ -70,7 +70,7 @@ func (tm *TokenManager) ParseAccessToken(tokenString string) (int, error) {
 	}
 
 	if claims, ok := token.Claims.(*JWTCustomClaims); ok && token.Valid {
-		return claims.userID, nil
+		return claims.UserID, nil
 	}
 	return 0, fmt.Errorf("access token not valid")
 }

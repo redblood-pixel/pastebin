@@ -45,7 +45,7 @@ func Run(configPath string) {
 	}
 
 	service := service.New(deps)
-	handler := handler.New(service)
+	handler := handler.New(service, tokenManager)
 	srv := server.New(&cfg.HTTP, handler.Init())
 
 	go func() {

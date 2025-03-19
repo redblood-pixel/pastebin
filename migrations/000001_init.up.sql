@@ -2,8 +2,8 @@ BEGIN;
 
 create table users(
     id serial primary key,
-    name varchar(64) not null,
-    email varchar(256) not null,
+    name varchar(64) not null unique,
+    email varchar(256) not null unique,
     password_hashed varchar(256) not null,
     created_at timestamptz not null default now(),
     last_login timestamptz not null default now()
