@@ -1,7 +1,10 @@
 package domain
 
-import "fmt"
+import "errors"
 
 var (
-	ErrNotFound = fmt.Errorf("not found")
+	ErrUserNotFound   = errors.New("user not found")
+	ErrInternalServer = errors.New("internal server error")
+	ErrUserExists     = errors.New("user with such email or name already exists")
+	ErrRefreshExpired = errors.New("refresh token expired")
 )

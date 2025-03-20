@@ -43,7 +43,8 @@ func (h *Handler) initRoutes(router *echo.Echo) {
 	users.GET("/:id", h.getUserById)
 	users.PUT("/:id", h.updateUserById)
 
-	pastes := api.Group("/group")
+	pastes := api.Group("/pastes")
+	pastes.Use(h.AuthMiddleware)
 	pastes.POST("/", h.createPase)
 	pastes.GET("/:id", h.getPaste)
 	pastes.DELETE("/:id", h.deletePaste)
