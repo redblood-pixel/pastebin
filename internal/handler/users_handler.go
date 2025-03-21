@@ -35,7 +35,7 @@ func (h *Handler) userSignUp(c echo.Context) error {
 	logger := logger.WithSource("handler.userSignUp")
 
 	if err = c.Bind(&input); err != nil {
-		logger.Error("bind error", "err", err.Error())
+		logger.Debug("bind error", "err", err.Error())
 		return err
 	}
 
@@ -43,7 +43,7 @@ func (h *Handler) userSignUp(c echo.Context) error {
 		c.Request().Context(), input.Name, input.Email, input.Password)
 	if err != nil {
 		logger.Error("Signup error", "err", err.Error())
-		return err
+		return FromError(err)
 	}
 
 	return c.JSON(http.StatusOK, tokens)

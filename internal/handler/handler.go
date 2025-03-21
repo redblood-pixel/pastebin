@@ -1,6 +1,11 @@
 package handler
 
 import (
+	"errors"
+	"fmt"
+	"log/slog"
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 	"github.com/redblood-pixel/pastebin/internal/service"
 	"github.com/redblood-pixel/pastebin/pkg/tokenutil"
@@ -9,6 +14,40 @@ import (
 type Handler struct {
 	services *service.Service
 	tm       *tokenutil.TokenManager
+}
+
+type APIError struct {
+	Status  int
+	Message string
+}
+
+func (e APIError) Error() string {
+	return fmt.Sprintf("http status: %d, %s", e.Status, e.Message)
+}
+
+func FromError(err error) APIError {
+	var (
+		apiError APIError
+		svc      service.Error
+	)
+	slog.Error("fromerror", "err", err.Error())
+	if errors.As(err, &svc) {
+		apiError.Message = svc.AppErr().Error()
+		switch svc.SvcErr() {
+		case service.ErrUserNotFound:
+			apiError.Status = http.StatusNotFound
+		case service.ErrUserExists:
+			apiError.Status = http.StatusConflict
+		case service.ErrRefreshExpired:
+			apiError.Status = http.StatusUnauthorized
+		case service.ErrInternalServer:
+			apiError.Status = http.StatusInternalServerError
+		}
+
+		slog.Error("fromer", "code", svc.SvcErr())
+	}
+	slog.Error("Fromerr", "err", apiError)
+	return apiError
 }
 
 func New(services *service.Service, tm *tokenutil.TokenManager) *Handler {
@@ -27,6 +66,8 @@ func (h *Handler) Init() *echo.Echo {
 			Status string
 		}{Status: "ok"})
 	})
+
+	router.HTTPErrorHandler = customErrorHandler
 
 	h.initRoutes(router)
 
@@ -48,4 +89,24 @@ func (h *Handler) initRoutes(router *echo.Echo) {
 	pastes.POST("/", h.createPase)
 	pastes.GET("/:id", h.getPaste)
 	pastes.DELETE("/:id", h.deletePaste)
+}
+
+func customErrorHandler(err error, c echo.Context) {
+	if c.Response().Committed {
+		return
+	}
+
+	var (
+		code    = http.StatusInternalServerError
+		message interface{}
+	)
+	if he, ok := err.(*echo.HTTPError); ok {
+		code = he.Code
+		message = he.Message
+	} else if he, ok := err.(APIError); ok {
+		code = he.Status
+		message = he.Message
+	}
+	// TODO maybe send custom http pages
+	c.JSON(code, message)
 }
