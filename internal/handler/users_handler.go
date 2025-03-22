@@ -23,7 +23,6 @@ type RefreshInput struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-// TODO custom error handling
 // TODO Update user data
 
 func (h *Handler) userSignUp(c echo.Context) error {
@@ -36,6 +35,7 @@ func (h *Handler) userSignUp(c echo.Context) error {
 
 	if err = c.Bind(&input); err != nil {
 		logger.Debug("bind error", "err", err.Error())
+		// TODO handle request, make http bad request response
 		return err
 	}
 

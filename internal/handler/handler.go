@@ -3,7 +3,6 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -17,8 +16,8 @@ type Handler struct {
 }
 
 type APIError struct {
-	Status  int
-	Message string
+	Status  int    `json:"-"`
+	Message string `json:"message"`
 }
 
 func (e APIError) Error() string {
@@ -30,7 +29,6 @@ func FromError(err error) APIError {
 		apiError APIError
 		svc      service.Error
 	)
-	slog.Error("fromerror", "err", err.Error())
 	if errors.As(err, &svc) {
 		apiError.Message = svc.AppErr().Error()
 		switch svc.SvcErr() {
@@ -43,10 +41,7 @@ func FromError(err error) APIError {
 		case service.ErrInternalServer:
 			apiError.Status = http.StatusInternalServerError
 		}
-
-		slog.Error("fromer", "code", svc.SvcErr())
 	}
-	slog.Error("Fromerr", "err", apiError)
 	return apiError
 }
 
@@ -69,6 +64,7 @@ func (h *Handler) Init() *echo.Echo {
 
 	router.HTTPErrorHandler = customErrorHandler
 
+	applyMiddlewares(router)
 	h.initRoutes(router)
 
 	return router
@@ -105,7 +101,7 @@ func customErrorHandler(err error, c echo.Context) {
 		message = he.Message
 	} else if he, ok := err.(APIError); ok {
 		code = he.Status
-		message = he.Message
+		message = he
 	}
 	// TODO maybe send custom http pages
 	c.JSON(code, message)
