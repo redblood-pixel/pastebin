@@ -16,19 +16,16 @@ services:
       - "5436:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_DB: pastebin_backend
-      POSTGRES_USER: daniluk_admin
-      POSTGRES_PASSWORD: mimimidi1
+    env_file:
+      - ../configs/.env.dev
     networks:
       - db
   
   pgadmin:
     container_name: pgadmin_container
     image: dpage/pgadmin4:7.2
-    environment:
-      PGADMIN_DEFAULT_EMAIL: danil@ya.ru
-      PGADMIN_DEFAULT_PASSWORD: 1234
+    env_file:
+      - ../configs/.env.dev
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     ports:

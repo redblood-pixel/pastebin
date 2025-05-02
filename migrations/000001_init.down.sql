@@ -1,5 +1,9 @@
 BEGIN;
 
-drop table if exists users, pastes;
+DROP TABLE IF EXISTS users, pastes;
+DROP TYPE IF EXISTS access_type;
+
+DROP TABLE IF EXISTS token;
+DROP EXTENSION IF EXISTS pgcrypto;
 
 COMMIT;

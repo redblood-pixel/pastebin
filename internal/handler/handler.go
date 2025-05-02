@@ -1,17 +1,22 @@
 package handler
 
 import (
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/redblood-pixel/pastebin/internal/service"
+	"github.com/redblood-pixel/pastebin/pkg/tokenutil"
 )
 
 type Handler struct {
 	services *service.Service
+	tm       *tokenutil.TokenManager
+	v        *validator.Validate
 }
 
-func New(services *service.Service) *Handler {
+func New(services *service.Service, tm *tokenutil.TokenManager) *Handler {
 	return &Handler{
 		services: services,
+		tm:       tm,
 	}
 }
 
@@ -25,6 +30,11 @@ func (h *Handler) Init() *echo.Echo {
 		}{Status: "ok"})
 	})
 
+	h.v = validator.New()
+
+	router.HTTPErrorHandler = customErrorHandler
+
+	applyMiddlewares(router)
 	h.initRoutes(router)
 
 	return router
@@ -40,8 +50,10 @@ func (h *Handler) initRoutes(router *echo.Echo) {
 	users.GET("/:id", h.getUserById)
 	users.PUT("/:id", h.updateUserById)
 
-	pastes := api.Group("/group")
-	pastes.POST("/", h.createPase)
+	pastes := api.Group("/pastes")
+	pastes.Use(h.AuthMiddleware)
+	pastes.POST("/", h.createPaste)
 	pastes.GET("/:id", h.getPaste)
+	pastes.GET("/", h.getUsersPastes)
 	pastes.DELETE("/:id", h.deletePaste)
 }

@@ -2,11 +2,17 @@ version: '3'
 
 vars:
   FIND_POSTGRES: $(docker ps | grep -i postgres:latest | awk '{print $1}')
+  POSTGRES_URL: postgres://daniluk_admin:mimimidi1@localhost:5436/pastebin_backend?sslmode=disable
 
 tasks:
+
+  run-migrations:
+    cmds:
+      - migrate -path migrations/ -database {{.POSTGRES_URL}} up
   dev-up:
     cmds:
       - docker compose -f infra/postgres.yaml up -d
+      - docker compose -f infra/minio.yaml up -d
   
   dev-postgres-attach:
     cmds:
@@ -15,7 +21,7 @@ tasks:
   
   dev-postgres-connect:
     cmds:
-      - docker exec -it {{.FIND_POSTGRES}} /bin/sh
+      - docker exec -it {{.FIND_POSTGRES}} psql -U daniluk_admin pastebin_backend
 
   dev-rm-volumes:
     cmds:

@@ -1,0 +1,16 @@
+volumes:
+  minio_data:
+    driver: local
+
+services:
+  minio:
+    container_name: pastes_storage
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    env_file:
+      - ../configs/.env.dev
+    command: server /data --console-address ":9001"

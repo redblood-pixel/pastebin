@@ -1,5 +1,10 @@
 env: dev
 
+jwt:
+  access_token_ttl: 60m
+  refresh_token_ttl: 168h
+  signing_key: HxElqFg0/pr@3cVO*sAdMt@n
+
 http:
   port: 8080
   write_timeout: 10s
@@ -12,3 +17,9 @@ postgres:
   port: 5436
   db_name: pastebin_backend
   ssl_mode: disable
+
+minio:
+  bucket_name: pastes
+  access_key: Pastebin_backend
+  secret_key: butterfli7
+  use_secure: false
