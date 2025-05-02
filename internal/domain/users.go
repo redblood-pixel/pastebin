@@ -8,7 +8,7 @@ type Tokens struct {
 }
 
 type User struct {
-	Name      string `json:"name"`
-	CreatedAt time.Time
-	LastLogin time.Time
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	LastLogin time.Time `json:"last_login"`
 }

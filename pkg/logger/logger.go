@@ -13,11 +13,13 @@ func Init(env string) {
 
 	if env != "prod" {
 		logger = slog.New(prettylog.NewHandler(&slog.HandlerOptions{
-			Level: slog.LevelInfo,
+			Level:     slog.LevelInfo,
+			AddSource: true,
 		}))
 	} else {
 		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
+			Level:     slog.LevelDebug,
+			AddSource: true,
 		}))
 	}
 

@@ -12,6 +12,7 @@ tasks:
   dev-up:
     cmds:
       - docker compose -f infra/postgres.yaml up -d
+      - docker compose -f infra/minio.yaml up -d
   
   dev-postgres-attach:
     cmds:

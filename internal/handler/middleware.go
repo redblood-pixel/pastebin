@@ -2,30 +2,43 @@ package handler
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/redblood-pixel/pastebin/internal/service"
+	"github.com/redblood-pixel/pastebin/internal/domain"
 )
+
+// * File only for middlewares
 
 func (h *Handler) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		authHeader := c.Request().Header.Get("Authorization")
 		if authHeader == "" {
-			return next(c)
+			if c.Path() == "/api/v1/pastes/:id" && c.Request().Method == "GET" {
+				return next(c)
+			}
+			return c.JSON(http.StatusUnauthorized, "no authoriztion header founded")
 		}
 		headerParts := strings.Split(authHeader, " ")
 		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
-			return next(c)
+			if c.Path() == "/api/v1/pastes/:id" && c.Request().Method == "GET" {
+				return next(c)
+			}
+			return c.JSON(http.StatusBadRequest, "not a bearer token")
 		}
 
 		userID, err := h.tm.ParseAccessToken(headerParts[1])
 		if err != nil {
-			return next(c)
+			fmt.Println(err.Error())
+			if c.Path() == "/api/v1/pastes/:id" && c.Request().Method == "GET" {
+				return next(c)
+			}
+			return c.JSON(http.StatusUnauthorized, "token expired or not valid")
 		}
 		c.Set("userID", userID)
 		slog.Info("middleware", "id", userID)
@@ -62,12 +75,7 @@ func applyMiddlewares(router *echo.Echo) {
 				slog.Any("error", err),
 				slog.Any("stack", stackLines),
 			)
-			return FromError(
-				service.NewError(
-					service.ErrInternalServer,
-					errors.New(fmt.Sprintf("panic error: %s", err.Error())),
-				),
-			)
+			return domain.ErrInternalServer
 		},
 	}))
 
@@ -76,6 +84,8 @@ func applyMiddlewares(router *echo.Echo) {
 		LogStatus:   true,
 		LogURI:      true,
 		LogError:    true,
+		LogMethod:   true,
+		LogLatency:  true,
 		HandleError: true, // forwards error to the global error handler, so it can decide appropriate status code
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
 			if v.Error == nil {
@@ -83,12 +93,14 @@ func applyMiddlewares(router *echo.Echo) {
 					slog.String("uri", v.URI),
 					slog.String("method", v.Method),
 					slog.Int("status", v.Status),
+					slog.Duration("latency", v.Latency/time.Millisecond),
 				)
 			} else {
 				slog.LogAttrs(context.Background(), slog.LevelError, "REQUEST_ERROR",
 					slog.String("uri", v.URI),
 					slog.String("method", v.Method),
 					slog.Int("status", v.Status),
+					slog.Duration("latency", v.Latency/time.Millisecond),
 					slog.String("err", v.Error.Error()),
 				)
 			}

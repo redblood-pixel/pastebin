@@ -17,3 +17,9 @@ postgres:
   port: 5436
   db_name: pastebin_backend
   ssl_mode: disable
+
+minio:
+  bucket_name: pastes
+  access_key: Pastebin_backend
+  secret_key: butterfli7
+  use_secure: false

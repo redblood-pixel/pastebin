@@ -2,32 +2,32 @@ package service
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/redblood-pixel/pastebin/internal/domain"
+	"github.com/redblood-pixel/pastebin/internal/repository"
 	"github.com/redblood-pixel/pastebin/pkg/hash"
-	"github.com/redblood-pixel/pastebin/pkg/postgres_queries"
+	"github.com/redblood-pixel/pastebin/pkg/postgres"
 	"github.com/redblood-pixel/pastebin/pkg/tokenutil"
 )
 
 type UserSerivce struct {
-	q    *postgres_queries.Queries
-	conn *pgx.Conn
-
+	pg *postgres.Postgres
+	ur repository.Database
 	tm *tokenutil.TokenManager
 }
 
-func NewUserService(q *postgres_queries.Queries, conn *pgx.Conn,
-	tm *tokenutil.TokenManager) *UserSerivce {
+func NewUserService(
+	pg *postgres.Postgres,
+	tm *tokenutil.TokenManager,
+	ur repository.Database,
+) *UserSerivce {
 	return &UserSerivce{
-		q:    q,
-		conn: conn,
-		tm:   tm,
+		pg: pg,
+		ur: ur,
+		tm: tm,
 	}
 }
 
@@ -36,34 +36,26 @@ func NewUserService(q *postgres_queries.Queries, conn *pgx.Conn,
 func (u *UserSerivce) CreateUser(ctx context.Context, name, email, password string) (domain.Tokens, error) {
 	var tokens domain.Tokens
 
-	tx, err := u.conn.Begin(ctx)
-	if err != nil {
-		return tokens, NewError(ErrInternalServer, err)
-	}
-	defer tx.Rollback(ctx)
-
-	qtx := u.q.WithTx(tx)
-	userID, err := qtx.CreateUser(ctx, postgres_queries.CreateUserParams{
-		Name:           name,
-		Email:          email,
-		PasswordHashed: hash.Generate(password),
-	})
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == pgerrcode.UniqueViolation {
-				return tokens, NewError(ErrUserExists, err)
-			}
-		}
-		return tokens, NewError(ErrInternalServer, err)
-	}
-
-	tokens, err = u.CreateNewSession(ctx, qtx, userID)
+	conn, err := u.pg.Pool.Acquire(ctx)
 	if err != nil {
 		return tokens, err
 	}
+	defer conn.Release()
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return tokens, err
+	}
+	defer tx.Rollback(ctx)
+
+	userID, err := u.ur.CreateUser(ctx, tx, name, email, hash.Generate(password))
+	if err != nil {
+		return tokens, err
+	}
+
+	tokens, err = u.CreateSession(ctx, tx, userID)
 	if err = tx.Commit(ctx); err != nil {
-		return tokens, NewError(ErrInternalServer, err)
+		return tokens, err
 	}
 	return tokens, nil
 }
@@ -71,92 +63,88 @@ func (u *UserSerivce) CreateUser(ctx context.Context, name, email, password stri
 func (u *UserSerivce) SignIn(ctx context.Context, nameOrEmail, password string) (domain.Tokens, error) {
 	var tokens domain.Tokens
 
-	tx, err := u.conn.Begin(ctx)
+	conn, err := u.pg.Pool.Acquire(ctx)
 	if err != nil {
-		return tokens, NewError(ErrInternalServer, err)
+		return tokens, err
+	}
+	defer conn.Release()
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return tokens, err
 	}
 	defer tx.Rollback(ctx)
 
-	qtx := u.q.WithTx(tx)
-	row, err := qtx.FindUserByNameOrEmail(ctx, nameOrEmail)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return tokens, NewError(ErrUserNotFound, err)
-		}
-		return tokens, NewError(ErrInternalServer, err)
-	}
-	if !hash.CheckPassword(password, row.PasswordHashed) {
-		return tokens, NewError(ErrUserNotFound, nil)
+	userID, passwordHashed, err := u.ur.FindUserByNameOrEmail(ctx, nameOrEmail)
+	if err != nil || !hash.CheckPassword(password, passwordHashed) {
+		return tokens, domain.ErrUserNotFound
 	}
 
-	tokens, err = u.CreateNewSession(ctx, qtx, row.ID)
-
-	if err = tx.Commit(ctx); err != nil {
-		return tokens, NewError(ErrInternalServer, err)
-	}
-	return tokens, err
-}
-
-func (u *UserSerivce) GetUserById(ctx context.Context, userID int) (domain.User, error) {
-	var user domain.User
-	row, err := u.q.GetUserById(ctx, int32(userID))
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return user, NewError(ErrUserNotFound, err)
-		}
-		return user, NewError(ErrInternalServer, err)
-	}
-	user.Name = row.Name
-	user.CreatedAt = row.CreatedAt
-	user.LastLogin = row.LastLogin
-	return user, nil
-}
-
-func (u *UserSerivce) Refresh(ctx context.Context, refresh uuid.UUID) (domain.Tokens, error) {
-	var tokens domain.Tokens
-
-	tx, err := u.conn.Begin(ctx)
-	if err != nil {
-		return tokens, NewError(ErrInternalServer, err)
-	}
-	defer tx.Rollback(ctx)
-
-	qtx := u.q.WithTx(tx)
-	row, err := qtx.DeleteById(ctx, refresh)
-	if time.Now().After(row.ExpiresAt) {
-		return tokens, NewError(ErrRefreshExpired, nil)
-	}
-
-	tokens, err = u.CreateNewSession(ctx, qtx, row.UserID)
+	tokens, err = u.CreateSession(ctx, tx, userID)
 	if err != nil {
 		return tokens, err
 	}
 
 	if err = tx.Commit(ctx); err != nil {
-		return tokens, ErrInternalServer
+		return tokens, err
 	}
+
 	return tokens, err
 }
 
-func (u *UserSerivce) CreateNewSession(ctx context.Context, qtx *postgres_queries.Queries, userID int32) (domain.Tokens, error) {
-	var (
-		err    error
-		tokens domain.Tokens
-	)
+func (u *UserSerivce) GetUserById(ctx context.Context, userID int) (domain.User, error) {
+	user, err := u.ur.GetUserById(ctx, userID)
+	return user, err
+}
 
-	// creating tokens
-	tokens.AccessToken, err = u.tm.CreateAccessToken(int(userID))
+func (u *UserSerivce) Refresh(ctx context.Context, refresh uuid.UUID) (domain.Tokens, error) {
+	var tokens domain.Tokens
+
+	conn, err := u.pg.Pool.Acquire(ctx)
 	if err != nil {
-		return tokens, NewError(ErrInternalServer, err)
+		return tokens, err
 	}
-	refresh, err := qtx.CreateSession(ctx, postgres_queries.CreateSessionParams{
-		UserID:    userID,
-		IssuedAt:  time.Now(),
-		ExpiresAt: time.Now().Add(u.tm.GetRefreshTTL()),
-	})
+	defer conn.Release()
+
+	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return tokens, NewError(ErrInternalServer, err)
+		return tokens, err
+	}
+	defer tx.Rollback(ctx)
+
+	userID, expireAt, err := u.ur.DeleteSessionById(ctx, tx, refresh)
+	if err != nil {
+		return tokens, domain.ErrSessionNotFound
+	}
+	if time.Now().After(expireAt) {
+		return tokens, domain.ErrRefreshExpired
+	}
+
+	tokens, err = u.CreateSession(ctx, tx, userID)
+	if err != nil {
+		return tokens, err
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return tokens, err
+	}
+
+	return tokens, err
+}
+
+func (u *UserSerivce) CreateSession(ctx context.Context, tx pgx.Tx, userID int) (domain.Tokens, error) {
+
+	var tokens domain.Tokens
+
+	refresh, err := u.ur.CreateSession(ctx, tx, userID, u.tm.GetRefreshTTL())
+	if err != nil {
+		return tokens, err
 	}
 	tokens.RefreshToken = refresh.String()
+	tokens.AccessToken, err = u.tm.CreateAccessToken(userID)
+	if err != nil {
+		return tokens, err
+	}
+
 	return tokens, nil
 }
