@@ -2,7 +2,6 @@ package postgres_storage
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -36,7 +35,9 @@ const getUsersPastesQuery = `SELECT
 FROM pastes WHERE user_id=$1;
 `
 
-const updateLastVisitedQuery = `UPDATE pastes SET last_visited=$2 WHERE id=$1;`
+const updateLastVisitedQuery = `UPDATE pastes SET last_visited=NOW() WHERE id=$1;`
+
+const deletePasteByIDQuery = `DELETE FROM pastes WHERE id=$1;`
 
 // TODO дополнить
 func (r *PostgresStorage) CreatePaste(ctx context.Context, tx pgx.Tx, paste domain.Paste, userID int) (uuid.UUID, error) {
@@ -54,7 +55,7 @@ func (r *PostgresStorage) GetPasteByID(ctx context.Context, tx pgx.Tx, pasteID u
 }
 
 func (r *PostgresStorage) UpdateLastVisited(ctx context.Context, tx pgx.Tx, pasteID uuid.UUID) error {
-	_, err := tx.Exec(ctx, updateLastVisitedQuery, pasteID, time.Now())
+	_, err := tx.Exec(ctx, updateLastVisitedQuery, pasteID)
 	return err
 }
 
@@ -79,6 +80,7 @@ func (r *PostgresStorage) GetUsersPastes(ctx context.Context, userID int) ([]dom
 	return pastes, nil
 }
 
-func (r *PostgresStorage) DeletePaste() error {
-	return nil
+func (r *PostgresStorage) DeletePasteByID(ctx context.Context, tx pgx.Tx, pasteID uuid.UUID) error {
+	_, err := tx.Exec(ctx, deletePasteByIDQuery, pasteID)
+	return err
 }

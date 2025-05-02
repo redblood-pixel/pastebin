@@ -24,10 +24,11 @@ type Database interface {
 	GetPasteByID(ctx context.Context, tx pgx.Tx, pasteID uuid.UUID) (domain.Paste, error)
 	GetUsersPastes(ctx context.Context, userID int) ([]domain.Paste, error)
 	UpdateLastVisited(ctx context.Context, tx pgx.Tx, pasteID uuid.UUID) error
+	DeletePasteByID(ctx context.Context, tx pgx.Tx, pasteID uuid.UUID) error
 }
 
 type Storage interface {
-	CreatePaste(ctx context.Context, name string, ttl time.Duration, data []byte) error
+	CreatePaste(ctx context.Context, name string, ttl time.Time, data []byte) error
 	GetPaste(ctx context.Context, name string) ([]byte, error)
 	DeletePaste(ctx context.Context, name string) error
 }

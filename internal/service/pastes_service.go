@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/redblood-pixel/pastebin/internal/domain"
 	"github.com/redblood-pixel/pastebin/internal/repository"
 	"github.com/redblood-pixel/pastebin/pkg/postgres"
@@ -32,9 +35,10 @@ func (s *PastesService) CreatePaste(ctx context.Context, userID int, paste domai
 	}
 	defer tx.Rollback(ctx)
 
-	if paste.TTL == 0 {
-		paste.TTL = domain.DefaultTTL
+	if paste.ExpiresAt.IsZero() {
+		paste.ExpiresAt = time.Now().Add(domain.DefaultTTL)
 	}
+	fmt.Println(paste.ExpiresAt)
 	if paste.Visibility == "" {
 		paste.Visibility = domain.PublicType
 	}
@@ -44,7 +48,7 @@ func (s *PastesService) CreatePaste(ctx context.Context, userID int, paste domai
 	}
 
 	pasteName := getPasteName(userID, pasteID, paste.Title)
-	err = s.r.Storage.CreatePaste(ctx, pasteName, paste.TTL, data)
+	err = s.r.Storage.CreatePaste(ctx, pasteName, paste.ExpiresAt, data)
 	if err != nil {
 		return "", err
 	}
@@ -86,6 +90,15 @@ func (s *PastesService) GetPasteByID(ctx context.Context, pasteID uuid.UUID, use
 		return paste, nil, domain.ErrPastePermissionDenied
 	}
 
+	// TTL control
+	if paste.ExpiresAt.Before(time.Now()) {
+		err = s.DeletePaste(ctx, tx, pasteID, userID, paste.Title)
+		if err != nil {
+			return paste, nil, err
+		}
+		return paste, nil, domain.ErrPasteExpired
+	}
+
 	err = s.r.Database.UpdateLastVisited(ctx, tx, pasteID)
 	if err != nil {
 		return paste, nil, err
@@ -100,7 +113,42 @@ func (s *PastesService) GetPasteByID(ctx context.Context, pasteID uuid.UUID, use
 	return paste, content, nil
 }
 
-// TODO delete paste
+func (s *PastesService) DeletePasteByID(ctx context.Context, pasteID uuid.UUID, userID int) error {
+	conn, err := s.pg.Pool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	paste, err := s.r.Database.GetPasteByID(ctx, tx, pasteID)
+	if err != nil {
+		return err
+	}
+
+	if paste.UserID != userID {
+		return domain.ErrPasteDeleteDenied
+	}
+
+	err = s.DeletePaste(ctx, tx, pasteID, userID, paste.Title)
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *PastesService) DeletePaste(ctx context.Context, tx pgx.Tx, pasteID uuid.UUID, userID int, title string) error {
+	err := s.r.Storage.DeletePaste(ctx, getPasteName(userID, pasteID, title))
+	if err != nil {
+		return err
+	}
+	err = s.r.Database.DeletePasteByID(ctx, tx, pasteID)
+	return err
+}
 
 func getPasteName(userID int, pasteID uuid.UUID, title string) string {
 	return strconv.Itoa(userID) + "/" + pasteID.String() + "/" + title

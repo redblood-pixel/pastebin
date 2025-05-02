@@ -20,11 +20,11 @@ func NewPastesRepository(mc *minio.Client, bn string) *MinioStorage {
 
 // * Maintain Single responsibility principle
 
-func (r *MinioStorage) CreatePaste(ctx context.Context, name string, ttl time.Duration, data []byte) error {
+func (r *MinioStorage) CreatePaste(ctx context.Context, name string, expiresAt time.Time, data []byte) error {
 	reader := bytes.NewReader(data)
 	_, err := r.mc.PutObject(ctx, r.bucketName, name, reader, int64(len(data)), minio.PutObjectOptions{
 		UserMetadata: map[string]string{
-			"x-amz-expires": time.Now().Add(ttl).Format(time.RFC3339),
+			"x-amz-expires": expiresAt.Format(time.RFC3339),
 		},
 	})
 

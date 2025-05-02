@@ -54,6 +54,9 @@ func (u *UserSerivce) CreateUser(ctx context.Context, name, email, password stri
 	}
 
 	tokens, err = u.CreateSession(ctx, tx, userID)
+	if err != nil {
+		return tokens, err
+	}
 	if err = tx.Commit(ctx); err != nil {
 		return tokens, err
 	}

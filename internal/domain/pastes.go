@@ -15,12 +15,11 @@ const (
 )
 
 type Paste struct {
-	ID          uuid.UUID     `json:"id"`
-	Title       string        `json:"title" validate:"required"`
-	CreatedAt   time.Time     `json:"created_at"`
-	ExpiresAt   time.Time     `json:"expires_at"`
-	TTL         time.Duration `json:"ttl"`
-	Visibility  string        `json:"visibility" validate:"oneof='public private'"`
-	LastVisited time.Time     `json:"last_visited"`
-	UserID      int           `json:"-"`
+	ID          uuid.UUID `json:"id"`
+	Title       string    `json:"title" validate:"required"`
+	CreatedAt   time.Time `json:"created_at"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	Visibility  string    `json:"visibility" validate:"oneof='public private'"`
+	LastVisited time.Time `json:"last_visited"`
+	UserID      int       `json:"-"`
 }

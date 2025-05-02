@@ -11,15 +11,17 @@ import (
 	"github.com/redblood-pixel/pastebin/internal/domain"
 )
 
-// TODO Create Paste
-// TODO Get Paste
 // TODO Delete Paste
 
 type CreatePasteInput struct {
-	PasteTitle      string        `json:"title" validate:"required"`
-	PasteTTL        time.Duration `json:"ttl"`
-	PasteVisibility string        `json:"visibility_access_type" validate:"omitempty,oneof='public private'"`
-	PasteContent    string        `json:"content" validate:"required,min=8"`
+	PasteTitle      string `json:"title" validate:"required"`
+	PasteTTL        string `json:"ttl"`
+	PasteVisibility string `json:"visibility_access_type" validate:"omitempty,oneof='public private'"`
+	PasteContent    string `json:"content" validate:"required,min=8"`
+}
+
+type CreatePasteResponse struct {
+	PasteID string `json:"paste_id"`
 }
 
 type GetPasteResponse struct {
@@ -48,11 +50,20 @@ func (h *Handler) createPaste(c echo.Context) error {
 		errors := err.(validator.ValidationErrors)
 		return errors
 	}
+	var expiresAt time.Time
+	if input.PasteTTL != "" {
+		ttl, err := time.ParseDuration(input.PasteTTL)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, "ttl must be in time.Duration format")
+		}
+		expiresAt = time.Now().Add(ttl)
+	}
+	fmt.Println(expiresAt)
 
 	paste := domain.Paste{
 		Title:      input.PasteTitle,
 		CreatedAt:  time.Now(),
-		TTL:        input.PasteTTL,
+		ExpiresAt:  expiresAt,
 		Visibility: input.PasteVisibility,
 	}
 
@@ -60,10 +71,9 @@ func (h *Handler) createPaste(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	// Service call
 	fmt.Println(pasteID)
 
-	return c.NoContent(http.StatusOK)
+	return c.JSON(http.StatusOK, CreatePasteResponse{pasteID})
 }
 
 func (h *Handler) getPaste(c echo.Context) error {
@@ -99,5 +109,16 @@ func (h *Handler) getUsersPastes(c echo.Context) error {
 }
 
 func (h *Handler) deletePaste(c echo.Context) error {
-	return nil
+	fmt.Println("hel")
+	userID, _ := c.Get("userID").(int)
+	pasteIDstr := c.Param("id")
+	pasteID, err := uuid.Parse(pasteIDstr)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, "id should be valid uuid")
+	}
+	err = h.services.Pastes.DeletePasteByID(c.Request().Context(), pasteID, userID)
+	if err != nil {
+		return err
+	}
+	return c.NoContent(http.StatusOK)
 }
