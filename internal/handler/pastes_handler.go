@@ -16,12 +16,19 @@ import (
 type CreatePasteInput struct {
 	PasteTitle      string `json:"title" validate:"required"`
 	PasteTTL        string `json:"ttl"`
-	PasteVisibility string `json:"visibility_access_type" validate:"omitempty,oneof='public private'"`
+	PasteVisibility string `json:"visibility" validate:"omitempty,oneof=public private"`
 	PasteContent    string `json:"content" validate:"required,min=8"`
 }
 
 type CreatePasteResponse struct {
 	PasteID string `json:"paste_id"`
+}
+
+type GetUsersPastesInput struct {
+	Duration      string `json:"duration"`
+	Offset        int    `json:"offset"`
+	Limit         int    `json:"limit"`
+	SortParameter string `json:"sort_param"`
 }
 
 type GetPasteResponse struct {
@@ -77,14 +84,25 @@ func (h *Handler) createPaste(c echo.Context) error {
 }
 
 func (h *Handler) getPaste(c echo.Context) error {
-	userID, _ := c.Get("userID").(int)
+
+	var (
+		userID  int
+		pasteID uuid.UUID
+		input   domain.PasteParameters
+		err     error
+	)
+	userID, _ = c.Get("userID").(int)
 	pasteIDstr := c.Param("id")
-	pasteID, err := uuid.Parse(pasteIDstr)
+	pasteID, err = uuid.Parse(pasteIDstr)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, "id should be valid uuid")
 	}
 
-	paste, content, err := h.services.GetPasteByID(c.Request().Context(), pasteID, userID)
+	if err = c.Bind(&input); err != nil {
+		return err
+	}
+
+	paste, content, err := h.services.GetPasteByID(c.Request().Context(), pasteID, userID, input)
 	if err != nil {
 		return err
 	}
@@ -101,6 +119,14 @@ func (h *Handler) getPaste(c echo.Context) error {
 
 func (h *Handler) getUsersPastes(c echo.Context) error {
 	userID := c.Get("userID").(int)
+	var (
+		input GetUsersPastesInput
+		err error
+	)
+
+	if err = c.Bind(&input); err != nil {
+		return err
+	}
 	pastes, err := h.services.Pastes.GetUsersPastes(c.Request().Context(), userID)
 	if err != nil {
 		return err

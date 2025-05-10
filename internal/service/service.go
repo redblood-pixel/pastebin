@@ -20,7 +20,7 @@ type Users interface {
 type Pastes interface {
 	CreatePaste(ctx context.Context, userID int, paste domain.Paste, data []byte) (string, error)
 	GetUsersPastes(ctx context.Context, userID int) ([]domain.Paste, error)
-	GetPasteByID(ctx context.Context, pasteID uuid.UUID, userID int) (domain.Paste, []byte, error)
+	GetPasteByID(ctx context.Context, pasteID uuid.UUID, userID int, params domain.PasteParameters) (domain.Paste, []byte, error)
 	DeletePasteByID(ctx context.Context, pasteID uuid.UUID, userID int) error
 }
 

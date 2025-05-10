@@ -22,7 +22,7 @@ type Database interface {
 
 	CreatePaste(ctx context.Context, tx pgx.Tx, paste domain.Paste, userID int) (uuid.UUID, error)
 	GetPasteByID(ctx context.Context, tx pgx.Tx, pasteID uuid.UUID) (domain.Paste, error)
-	GetUsersPastes(ctx context.Context, userID int) ([]domain.Paste, error)
+	GetUsersPastes(ctx context.Context, userID int, createdAtFilter time.Time, sortBy string, offset, limit int) ([]domain.Paste, error)
 	UpdateLastVisited(ctx context.Context, tx pgx.Tx, pasteID uuid.UUID) error
 	DeletePasteByID(ctx context.Context, tx pgx.Tx, pasteID uuid.UUID) error
 }

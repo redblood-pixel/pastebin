@@ -2,6 +2,9 @@ package postgres_storage
 
 import (
 	"context"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -21,9 +24,13 @@ const getPasteByIDQuery = `SELECT
 	expires_at,
 	visibility,
 	last_visited,
+	burn_after_read,
 	user_id
-FROM pastes WHERE id=$1;
-`
+FROM pastes AS p
+LEFT JOIN pastes_passwords pp ON p.id=pp.paste_id
+WHERE id=$1
+FOR UPDATE;
+` // query with locks
 
 const getUsersPastesQuery = `SELECT
 	id,
@@ -32,7 +39,8 @@ const getUsersPastesQuery = `SELECT
 	expires_at,
 	visibility,
 	last_visited
-FROM pastes WHERE user_id=$1;
+FROM pastes
+WHERE user_id=$1
 `
 
 const updateLastVisitedQuery = `UPDATE pastes SET last_visited=NOW() WHERE id=$1;`
@@ -50,7 +58,16 @@ func (r *PostgresStorage) CreatePaste(ctx context.Context, tx pgx.Tx, paste doma
 func (r *PostgresStorage) GetPasteByID(ctx context.Context, tx pgx.Tx, pasteID uuid.UUID) (domain.Paste, error) {
 	var paste domain.Paste
 	row := tx.QueryRow(ctx, getPasteByIDQuery, pasteID)
-	err := row.Scan(&paste.Title, &paste.CreatedAt, &paste.ExpiresAt, &paste.Visibility, &paste.LastVisited, &paste.UserID)
+	err := row.Scan(
+		&paste.Title,
+		&paste.CreatedAt,
+		&paste.ExpiresAt,
+		&paste.Visibility,
+		&paste.LastVisited,
+		&paste.BurnAfterRead,
+		&paste.UserID,
+		&paste.PasswordHashed,
+	)
 	return paste, err
 }
 
@@ -59,9 +76,42 @@ func (r *PostgresStorage) UpdateLastVisited(ctx context.Context, tx pgx.Tx, past
 	return err
 }
 
-func (r *PostgresStorage) GetUsersPastes(ctx context.Context, userID int) ([]domain.Paste, error) {
+func (r *PostgresStorage) GetUsersPastes(ctx context.Context, userID int, createdAtFilter time.Time, sortBy string, desc bool, offset, limit int) ([]domain.Paste, error) {
 	var pastes []domain.Paste
-	rows, err := r.db.Pool.Query(ctx, getUsersPastesQuery, userID)
+	var query strings.Builder
+	var args []interface{}
+	paramNum := 2
+
+	query.WriteString(getUsersPastesQuery)
+	args = append(args, userID)
+	if !createdAtFilter.IsZero() {
+		query.WriteString(" AND created_at > $" + strconv.Itoa(paramNum))
+		args = append(args, createdAtFilter)
+		paramNum++
+	}
+
+	if sortBy != "" {
+		query.WriteString(" ORDER BY $" + strconv.Itoa(paramNum))
+		if desc {
+			query.WriteString(" DESC")
+		}
+		args = append(args, sortBy)
+		paramNum++
+	}
+
+	if limit != 0 {
+		query.WriteString(" LIMIT $" + strconv.Itoa(paramNum))
+		args = append(args, limit)
+		paramNum++
+	}
+
+	if offset != 0 {
+		query.WriteString(" OFFSET $" + strconv.Itoa(paramNum))
+		args = append(args, offset)
+		paramNum++
+	}
+
+	rows, err := r.db.Pool.Query(ctx, query.String(), args)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +119,14 @@ func (r *PostgresStorage) GetUsersPastes(ctx context.Context, userID int) ([]dom
 
 	for rows.Next() {
 		var paste domain.Paste
-		if err = rows.Scan(&paste.ID, &paste.Title, &paste.CreatedAt, &paste.ExpiresAt, &paste.Visibility, &paste.LastVisited); err != nil {
+		if err = rows.Scan(
+			&paste.ID,
+			&paste.Title,
+			&paste.CreatedAt,
+			&paste.ExpiresAt,
+			&paste.Visibility,
+			&paste.LastVisited,
+		); err != nil {
 			return nil, err
 		}
 		pastes = append(pastes, paste)

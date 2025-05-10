@@ -7,6 +7,11 @@ func Generate(password string) string {
 	return string(bytes)
 }
 
+func Generate9(password string) string {
+	bytes, _ := bcrypt.GenerateFromPassword([]byte(password), 9)
+	return string(bytes)
+}
+
 func CheckPassword(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil

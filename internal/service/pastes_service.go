@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/pgtype"
 	"github.com/jackc/pgx/v5"
 	"github.com/redblood-pixel/pastebin/internal/domain"
 	"github.com/redblood-pixel/pastebin/internal/repository"
+	"github.com/redblood-pixel/pastebin/pkg/hash"
 	"github.com/redblood-pixel/pastebin/pkg/postgres"
 )
 
@@ -66,7 +68,7 @@ func (s *PastesService) GetUsersPastes(ctx context.Context, userID int) ([]domai
 	return pastes, err
 }
 
-func (s *PastesService) GetPasteByID(ctx context.Context, pasteID uuid.UUID, userID int) (domain.Paste, []byte, error) {
+func (s *PastesService) GetPasteByID(ctx context.Context, pasteID uuid.UUID, userID int, params domain.PasteParameters) (domain.Paste, []byte, error) {
 
 	var paste domain.Paste
 	conn, err := s.pg.Pool.Acquire(ctx)
@@ -87,11 +89,16 @@ func (s *PastesService) GetPasteByID(ctx context.Context, pasteID uuid.UUID, use
 
 	// Access control
 	if paste.Visibility == domain.PrivateType && paste.UserID != userID {
+		if paste.PasswordHashed.Status == pgtype.Present && hash.CheckPassword(params.Password, paste.PasswordHashed.String) {
+			goto accessPassed
+		}
 		return paste, nil, domain.ErrPastePermissionDenied
 	}
+accessPassed:
 
 	// TTL control
-	if paste.ExpiresAt.Before(time.Now()) {
+	if paste.ExpiresAt.Before(time.Now()) || // if paste is expired
+		paste.LastVisited.Add(domain.DefaultLastVisitedTTL).Before(time.Now()) { // if paste was no visited in 2 years
 		err = s.DeletePaste(ctx, tx, pasteID, userID, paste.Title)
 		if err != nil {
 			return paste, nil, err
@@ -106,8 +113,19 @@ func (s *PastesService) GetPasteByID(ctx context.Context, pasteID uuid.UUID, use
 
 	pasteName := getPasteName(paste.UserID, pasteID, paste.Title)
 	content, err := s.r.Storage.GetPaste(ctx, pasteName)
-	// content := []byte(pasteName)
 	if err != nil {
+		return paste, nil, err
+	}
+
+	// Burn after read control
+	if paste.BurnAfterRead {
+		err = s.DeletePaste(ctx, tx, pasteID, userID, paste.Title)
+		if err != nil {
+			return paste, content, err
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
 		return paste, nil, err
 	}
 	return paste, content, nil
