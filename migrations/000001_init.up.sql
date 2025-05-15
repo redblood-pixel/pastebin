@@ -40,7 +40,7 @@ create table pastes(
 
 create table pastes_passwords(
     id SERIAL PRIMARY KEY,
-    paste_id UUID REFERENCES pastes(id),
+    paste_id UUID REFERENCES pastes(id) ON DELETE CASCADE, -- need testing
     password_hashed VARCHAR(255) not null
 );
 

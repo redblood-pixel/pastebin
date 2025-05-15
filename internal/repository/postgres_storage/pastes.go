@@ -2,9 +2,10 @@ package postgres_storage
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -18,6 +19,10 @@ const createPasteQuery = `INSERT INTO pastes(
 	user_id
 ) VALUES ($1, $2, $3, $4) RETURNING id;`
 
+const createPastePassword = `INSERT INTO pastes_passwords
+(paste_id, password_hashed)
+VALUES ($1, $2);`
+
 const getPasteByIDQuery = `SELECT
 	title,
 	created_at,
@@ -25,11 +30,12 @@ const getPasteByIDQuery = `SELECT
 	visibility,
 	last_visited,
 	burn_after_read,
-	user_id
+	user_id,
+	pp.password_hashed
 FROM pastes AS p
 LEFT JOIN pastes_passwords pp ON p.id=pp.paste_id
-WHERE id=$1
-FOR UPDATE;
+WHERE p.id=$1
+FOR UPDATE OF p;
 ` // query with locks
 
 const getUsersPastesQuery = `SELECT
@@ -46,13 +52,18 @@ WHERE user_id=$1
 const updateLastVisitedQuery = `UPDATE pastes SET last_visited=NOW() WHERE id=$1;`
 
 const deletePasteByIDQuery = `DELETE FROM pastes WHERE id=$1;`
+const deletePastesQuery = `DELETE FROM pastes WHERE id = ANY($1)`
 
-// TODO дополнить
 func (r *PostgresStorage) CreatePaste(ctx context.Context, tx pgx.Tx, paste domain.Paste, userID int) (uuid.UUID, error) {
 	var pasteID uuid.UUID
 	row := tx.QueryRow(ctx, createPasteQuery, paste.Title, paste.ExpiresAt, paste.Visibility, userID)
 	err := row.Scan(&pasteID)
 	return pasteID, err
+}
+
+func (r *PostgresStorage) CreatePastePassword(ctx context.Context, tx pgx.Tx, pasteID uuid.UUID, passwordHashed string) error {
+	_, err := tx.Exec(ctx, createPastePassword, pasteID, passwordHashed)
+	return err
 }
 
 func (r *PostgresStorage) GetPasteByID(ctx context.Context, tx pgx.Tx, pasteID uuid.UUID) (domain.Paste, error) {
@@ -66,8 +77,11 @@ func (r *PostgresStorage) GetPasteByID(ctx context.Context, tx pgx.Tx, pasteID u
 		&paste.LastVisited,
 		&paste.BurnAfterRead,
 		&paste.UserID,
-		&paste.PasswordHashed,
+		&paste.Password,
 	)
+	if err == pgx.ErrNoRows {
+		return paste, domain.ErrPasteNotFound
+	}
 	return paste, err
 }
 
@@ -76,43 +90,43 @@ func (r *PostgresStorage) UpdateLastVisited(ctx context.Context, tx pgx.Tx, past
 	return err
 }
 
-func (r *PostgresStorage) GetUsersPastes(ctx context.Context, userID int, createdAtFilter time.Time, sortBy string, desc bool, offset, limit int) ([]domain.Paste, error) {
+func (r *PostgresStorage) GetUsersPastes(ctx context.Context, tx pgx.Tx, userID int, filters domain.PasteFilters) ([]domain.Paste, error) {
 	var pastes []domain.Paste
 	var query strings.Builder
-	var args []interface{}
+	var args []any
 	paramNum := 2
 
 	query.WriteString(getUsersPastesQuery)
 	args = append(args, userID)
-	if !createdAtFilter.IsZero() {
-		query.WriteString(" AND created_at > $" + strconv.Itoa(paramNum))
-		args = append(args, createdAtFilter)
+	if !filters.CreatedAtFilter.IsZero() {
+		query.WriteString(" AND created_at < $" + strconv.Itoa(paramNum))
+		args = append(args, filters.CreatedAtFilter)
 		paramNum++
 	}
 
-	if sortBy != "" {
-		query.WriteString(" ORDER BY $" + strconv.Itoa(paramNum))
-		if desc {
+	if filters.SortBy != "" {
+		query.WriteString(fmt.Sprintf(" ORDER BY %s", filters.SortBy))
+		if filters.Desc {
 			query.WriteString(" DESC")
 		}
-		args = append(args, sortBy)
-		paramNum++
 	}
 
-	if limit != 0 {
+	if filters.Limit != 0 {
 		query.WriteString(" LIMIT $" + strconv.Itoa(paramNum))
-		args = append(args, limit)
+		args = append(args, filters.Limit)
 		paramNum++
 	}
 
-	if offset != 0 {
+	if filters.Offset != 0 {
 		query.WriteString(" OFFSET $" + strconv.Itoa(paramNum))
-		args = append(args, offset)
+		args = append(args, filters.Offset)
 		paramNum++
 	}
+	slog.Debug("getUsersQuery", "query", query.String(), "args", args)
 
-	rows, err := r.db.Pool.Query(ctx, query.String(), args)
+	rows, err := tx.Query(ctx, query.String(), args...)
 	if err != nil {
+		fmt.Println(err.Error())
 		return nil, err
 	}
 	defer rows.Close()
@@ -139,5 +153,10 @@ func (r *PostgresStorage) GetUsersPastes(ctx context.Context, userID int, create
 
 func (r *PostgresStorage) DeletePasteByID(ctx context.Context, tx pgx.Tx, pasteID uuid.UUID) error {
 	_, err := tx.Exec(ctx, deletePasteByIDQuery, pasteID)
+	return err
+}
+
+func (r *PostgresStorage) DeletePastes(ctx context.Context, tx pgx.Tx, pastesID []uuid.UUID) error {
+	_, err := tx.Exec(ctx, deletePastesQuery, pastesID)
 	return err
 }

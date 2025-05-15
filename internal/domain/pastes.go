@@ -16,17 +16,21 @@ const (
 )
 
 type Paste struct {
-	ID             uuid.UUID `json:"id"`
-	Title          string    `json:"title" validate:"required"`
-	CreatedAt      time.Time `json:"created_at"`
-	ExpiresAt      time.Time `json:"expires_at"`
-	Visibility     string    `json:"visibility" validate:"oneof='public private'"`
-	LastVisited    time.Time `json:"last_visited"`
-	BurnAfterRead  bool
-	UserID         int `json:"-"`
-	PasswordHashed pgtype.Text
+	ID            uuid.UUID `json:"id"`
+	Title         string    `json:"title" validate:"required"`
+	CreatedAt     time.Time `json:"created_at"`
+	ExpiresAt     time.Time `json:"expires_at"`
+	Visibility    string    `json:"visibility" validate:"oneof='public private'"`
+	LastVisited   time.Time `json:"last_visited"`
+	BurnAfterRead bool
+	UserID        int         `json:"-"`
+	Password      pgtype.Text `json:"-"`
 }
 
-type PasteParameters struct {
-	Password string `json:"password"`
+type PasteFilters struct {
+	CreatedAtFilter time.Time
+	SortBy          string
+	Desc            bool
+	Offset          int
+	Limit           int
 }

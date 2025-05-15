@@ -15,6 +15,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5"
 	_ "github.com/lib/pq"
+	"github.com/redblood-pixel/pastebin/pkg/logger"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -22,10 +23,9 @@ import (
 var dbURL string
 
 func TestMain(m *testing.M) {
-	fmt.Println("in")
+
 	ctx := context.Background()
-	// ctx, cancel := context.WithTimeout(context.Background(), time.Minute*2)
-	// defer cancel()
+	logger.Init("test")
 	container, url := startPostgresContainer(ctx)
 	defer container.Terminate(ctx)
 	dbURL = url
@@ -112,7 +112,8 @@ func setUpContainer(ctx context.Context) {
     ('userr1', 'user1@example.com', '$2a$10$xJwL5v9zZ1hBp5UQ6YQZQe9v6ZG9Jt8Xe6ZG9Jt8Xe6ZG9Jt8Xe6ZG'),
     ('userr2', 'user2@example.com', '$2a$10$xJwL5v9zZ1hBp5UQ6YQZQe9v6ZG9Jt8Xe6ZG9Jt8Xe6ZG9Jt8Xe6ZG'),
     ('userr3', 'user3@example.com', '$2a$10$xJwL5v9zZ1hBp5UQ6YQZQe9v6ZG9Jt8Xe6ZG9Jt8Xe6ZG9Jt8Xe6ZG'),
-    ('userr4', 'user4@example.com', '$2a$10$xJwL5v9zZ1hBp5UQ6YQZQe9v6ZG9Jt8Xe6ZG9Jt8Xe6ZG9Jt8Xe6ZG');
+    ('userr4', 'user4@example.com', '$2a$10$xJwL5v9zZ1hBp5UQ6YQZQe9v6ZG9Jt8Xe6ZG9Jt8Xe6ZG9Jt8Xe6ZG'),
+	('userr5', 'user5@email11.com', '$2a$10$xJwL5v9zZ1hBp5UQ6YQZQe9v6ZG9Jt8Xe6ZG9Jt8Xe6ZG9Jt8Xe6ZG');
 
     -- Вставка паст
     INSERT INTO pastes (title, expires_at, visibility, user_id) VALUES
@@ -136,6 +137,14 @@ func setUpContainer(ctx context.Context) {
     ('Private thoughts', '2030-01-01 00:00:00', 'private', 2),
     ('Team docs', NOW() + INTERVAL '180 days', 'public', 3),
     ('Financial info', '2030-01-01 00:00:00', 'private', 4);
+	
+	INSERT INTO pastes (title, created_at, expires_at, visibility, user_id) VALUES
+	('x1', NOW() - INTERVAL '10 minutes', '2030-01-01 00:00:00', 'public', 5),
+	('x2', NOW() - INTERVAL '2 days', '2030-01-01 00:00:00', 'public', 5),
+	('x3', NOW() - INTERVAL '7 days', '2030-01-01 00:00:00', 'public', 5),
+	('x4', NOW() - INTERVAL '30 days', '2030-01-01 00:00:00', 'public', 5),
+	('x5', NOW() - INTERVAL '4 hours', '2030-01-01 00:00:00', 'public', 5),
+	('x6', NOW() - INTERVAL '17 hours', '2030-01-01 00:00:00', 'public', 5);
 `)
 	if err != nil {
 		fmt.Printf("failed to seed test data: %s", err.Error())
