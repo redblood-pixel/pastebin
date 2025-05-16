@@ -26,6 +26,8 @@ func TestPasteService(t *testing.T) {
 		t.Fatalf("can not connect to db - %s", err.Error())
 	}
 
+	// mockStorage := repository.MockStorage{}
+
 	// mock?
 	repo := repository.NewRepo(db, nil, "")
 	psvc := NewPastesService(repo)
