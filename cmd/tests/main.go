@@ -1,13 +1,15 @@
-package repository_integration
+//go:build tests
+// +build tests
+
+package main
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log/slog"
+	"os"
 	"path/filepath"
 	"runtime"
-	"testing"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -15,27 +17,10 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5"
 	_ "github.com/lib/pq"
-	"github.com/redblood-pixel/pastebin/pkg/logger"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-var dbURL string
-
-func TestMain(m *testing.M) {
-
-	ctx := context.Background()
-	logger.Init("test")
-	container, url := startPostgresContainer(ctx)
-	defer container.Terminate(ctx)
-	dbURL = url
-	setUpContainer(ctx)
-
-	m.Run()
-
-}
-
 func waitForDB(dbURL string, timeout time.Duration) error {
+	fmt.Println(dbURL)
 	start := time.Now()
 	for time.Since(start) < timeout {
 		db, err := sql.Open("postgres", dbURL)
@@ -43,58 +28,35 @@ func waitForDB(dbURL string, timeout time.Duration) error {
 			if err = db.Ping(); err == nil {
 				db.Close()
 				return nil
+			} else if err != nil {
+				fmt.Println(err.Error())
 			}
 			db.Close()
+		} else {
+			fmt.Println(err.Error())
 		}
 		time.Sleep(1 * time.Second)
 	}
 	return fmt.Errorf("database not ready after %v", timeout)
 }
 
-func startPostgresContainer(ctx context.Context) (testcontainers.Container, string) {
-	req := testcontainers.ContainerRequest{
-		Image: "postgres:14",
-		Env: map[string]string{
-			"POSTGRES_USER":     "test",
-			"POSTGRES_PASSWORD": "test",
-			"POSTGRES_DB":       "test",
-		},
-		ExposedPorts: []string{"5432/tcp"},
-
-		WaitingFor: wait.ForLog("database system is ready to accept connections").
-			WithStartupTimeout(60 * time.Second).
-			WithPollInterval(time.Second),
-	}
-
-	postgresC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
-	if err != nil {
-		slog.Error("failed to start container", "err", err.Error())
-	}
-	host, _ := postgresC.Host(ctx)
-	port, _ := postgresC.MappedPort(ctx, "5432")
-	url := fmt.Sprintf("postgres://test:test@%s:%s/test?sslmode=disable", host, port.Port())
-	fmt.Println(url)
-	return postgresC, url
-}
-
-func setUpContainer(ctx context.Context) {
+func main() {
+	ctx := context.Background()
+	url := os.Getenv("TEST_DB_URL")
 	_, path, _, ok := runtime.Caller(0)
 	if !ok {
 		fmt.Println("failed to get path")
 	}
-	migrationsPath := filepath.Join(filepath.Dir(path), "..", "..", "..", "migrations")
+	migrationsPath := filepath.Join(filepath.Dir(path), "..", "..", "migrations")
 	fmt.Println(migrationsPath)
 
-	if err := waitForDB(dbURL, 30*time.Second); err != nil {
-		fmt.Printf("Database not ready: %v", err)
+	if err := waitForDB(url, 30*time.Second); err != nil {
+		fmt.Printf("Database not ready: %v\n", err)
 		return
 	}
 	m, err := migrate.New(
 		"file://"+migrationsPath,
-		dbURL,
+		url,
 	)
 	if err != nil {
 		fmt.Println(err)
@@ -102,7 +64,7 @@ func setUpContainer(ctx context.Context) {
 	if err = m.Up(); err != nil {
 		fmt.Println(err)
 	}
-	db, err := pgx.Connect(ctx, dbURL)
+	db, err := pgx.Connect(ctx, url)
 	if err != nil {
 		fmt.Println(err)
 	}

@@ -12,14 +12,13 @@ import (
 	"github.com/redblood-pixel/pastebin/internal/domain"
 	"github.com/redblood-pixel/pastebin/internal/repository"
 	"github.com/redblood-pixel/pastebin/pkg/hash"
-	"github.com/redblood-pixel/pastebin/pkg/postgres"
 )
 
 type PastesService struct {
 	r *repository.Repository
 }
 
-func NewPastesService(pg *postgres.Postgres, repo *repository.Repository) *PastesService {
+func NewPastesService(repo *repository.Repository) *PastesService {
 	return &PastesService{r: repo}
 }
 

@@ -1,8 +1,12 @@
-package repository_integration
+//go:build integration
+// +build integration
+
+package repository
 
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -12,8 +16,14 @@ import (
 	"github.com/redblood-pixel/pastebin/internal/repository/postgres_storage"
 )
 
+func TestMain(m *testing.M) {
+	m.Run()
+}
+
 func TestPasteRepository(t *testing.T) {
-	db, err := pgx.Connect(context.Background(), dbURL)
+
+	url := os.Getenv("TEST_DB_URL")
+	db, err := pgx.Connect(context.Background(), url)
 	if err != nil {
 		t.Errorf("connection failed - %s", err.Error())
 	}
@@ -27,9 +37,8 @@ func testCreatePaste(t *testing.T, repo *postgres_storage.PostgresStorage, db *p
 
 	ctx := context.Background()
 
-	// Подготовка тестовых данных
 	now := time.Now()
-	testUserID := 1 // Должен существовать в тестовой БД
+	testUserID := 1
 
 	tests := []struct {
 		name        string
@@ -209,9 +218,6 @@ func testGetUsersPaste(t *testing.T, repo *postgres_storage.PostgresStorage, db 
 			pastes, err := repo.GetUsersPastes(ctx, tx, tt.userID, tt.filters)
 			if err != nil {
 				t.Errorf("unexpected error - %s", err.Error())
-			}
-			for _, paste := range pastes {
-				fmt.Println(paste.Title, paste.CreatedAt)
 			}
 			if len(pastes) != len(tt.expected) {
 				titles := make([]string, 0)

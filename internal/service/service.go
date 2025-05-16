@@ -39,6 +39,6 @@ type Deps struct {
 func New(deps Deps) *Service {
 	return &Service{
 		Users:  NewUserService(deps.Postgres, deps.TokenManager, deps.Repository.Database),
-		Pastes: NewPastesService(deps.Postgres, deps.Repository),
+		Pastes: NewPastesService(deps.Repository),
 	}
 }
