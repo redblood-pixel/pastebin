@@ -38,35 +38,18 @@ func Run(configPath string) {
 		return
 	}
 
-	minioC, err := minio_connection.Connect()
+	minioC, err := minio_connection.Connect(&cfg.Minio)
 	if err != nil {
 		fmt.Println("min con", err.Error())
 		return
 	}
 
 	c, err := minioC.BucketExists(dbctx, "pastes")
-	if err != nil {
-		fmt.Println("min ping", err.Error())
+	if err != nil || !c {
+		fmt.Println("min ping error - ", err.Error(), cfg.Minio)
 		return
 	}
-	fmt.Println("bucket -", c)
 
-	// testObj := []byte("print(\"Hello, world!\")")
-	// testReader := bytes.NewReader(testObj)
-	// uploadInfo, err := minioC.PutObject(dbctx, "pastes", "test_obj", testReader, int64(len(testObj)), minio.PutObjectOptions{})
-	// if err != nil {
-	// 	fmt.Println("min upload", err.Error())
-	// 	return
-	// }
-	// logger.Info("upload", slog.Any("struct", uploadInfo))
-	// Pkg
-
-	// Получение URL для загруженного объекта
-	// url, err := minioC.PresignedGetObject(context.Background(), "pastes", "test_obj", time.Second*24*60*60, nil)
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// }
-	// fmt.Println(url)
 	tokenManager := tokenutil.New(&cfg.JWT)
 
 	//Service Dependencies

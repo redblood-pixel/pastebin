@@ -31,7 +31,6 @@ type Database interface {
 	DeletePastes(ctx context.Context, tx pgx.Tx, pastesID []uuid.UUID) error
 }
 
-//go:generate go run github.com/vektra/mockery/v3@v3.2.5 --name=Storage
 type Storage interface {
 	CreatePaste(ctx context.Context, name string, ttl time.Time, data []byte) error
 	GetPaste(ctx context.Context, name string) ([]byte, error)

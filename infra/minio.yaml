@@ -2,9 +2,13 @@ volumes:
   minio_data:
     driver: local
 
+networks:
+  storage:
+    driver: bridge
+
 services:
   minio:
-    container_name: pastes_storage
+    container_name: minio-server
     image: minio/minio:latest
     ports:
       - "9000:9000"
@@ -13,4 +17,11 @@ services:
       - minio_data:/data
     env_file:
       - ../configs/.env.dev
+    networks:
+      - storage
     command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 2s
+      retries: 10

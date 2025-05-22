@@ -1,5 +1,21 @@
-FROM FROM golang:1.24-alpine 
+FROM golang:1.24-alpine AS build
 
-RUN curl -s https://packagecloud.io/install/repositories/golang-migrate/migrate/script.deb.sh | sudo bash
-RUN apt-get update
-RUN apt-get install -y migrate
+WORKDIR /app
+
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -tags=app -o /app/app ./cmd/app/main.go
+
+# Deploy the application binary into a lean image
+FROM alpine:latest
+
+WORKDIR /
+
+COPY --from=build /app/app /app/app
+COPY --from=build /app/configs /app/configs
+
+ENTRYPOINT ["/app/app"]

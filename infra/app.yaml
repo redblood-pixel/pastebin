@@ -1,0 +1,16 @@
+services:
+  app:
+    container_name: pastebin_backend
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - db
+      - storage
+    depends_on:
+      minio:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy

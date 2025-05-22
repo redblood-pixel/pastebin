@@ -20,6 +20,11 @@ services:
       - ../configs/.env.dev
     networks:
       - db
+    healthcheck:
+      test: ["CMD-SHELL", "psql -U daniluk_admin -d pastebin_backend  -c 'SELECT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
   
   pgadmin:
     container_name: pgadmin_container

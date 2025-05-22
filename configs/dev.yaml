@@ -13,13 +13,13 @@ http:
 postgres:
   username: daniluk_admin
   password: mimimidi1
-  host: localhost
-  port: 5436
+  host: past_postgr
+  port: 5432
   db_name: pastebin_backend
   ssl_mode: disable
 
 minio:
-  bucket_name: pastes
-  access_key: Pastebin_backend
-  secret_key: butterfli7
+  endpoint: minio-server:9000
+  access_key: BPYUnB5lsb2sR8OKZYcL
+  secret_key: iKScGSBikEX4H4EBfX7PacXTaXfUA7hOmenpVm0S
   use_secure: false
