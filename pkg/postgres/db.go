@@ -16,6 +16,7 @@ type Config struct {
 	Port     int    `yaml:"port"`
 	DBName   string `yaml:"db_name"`
 	SSLMode  string `yaml:"ssl_mode"`
+	URL      string
 }
 
 type Postgres struct {
@@ -24,10 +25,18 @@ type Postgres struct {
 
 func New(ctx context.Context, cfg *Config) (*Postgres, error) {
 
-	var err error
+	var (
+		err error
+		dsn string
+	)
+
 	logger := logger.WithSource("postgres.New")
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		cfg.Username, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode)
+	if cfg.URL == "" {
+		dsn = fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+			cfg.Username, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode)
+	} else {
+		dsn = cfg.URL
+	}
 
 	config, err := pgxpool.ParseConfig(dsn)
 	if err != nil {

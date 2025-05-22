@@ -53,7 +53,7 @@ func (h *Handler) initRoutes(router *echo.Echo) {
 	pastes := api.Group("/pastes")
 	pastes.Use(h.AuthMiddleware)
 	pastes.POST("/", h.createPaste)
-	pastes.GET("/:id", h.getPaste)
 	pastes.GET("/", h.getUsersPastes)
+	pastes.GET("/:id", h.getPaste)
 	pastes.DELETE("/:id", h.deletePaste)
 }

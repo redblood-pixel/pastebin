@@ -7,19 +7,33 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/pgtype"
 	"github.com/labstack/echo/v4"
 	"github.com/redblood-pixel/pastebin/internal/domain"
 )
 
-// TODO Create Paste
-// TODO Get Paste
-// TODO Delete Paste
-
 type CreatePasteInput struct {
-	PasteTitle      string        `json:"title" validate:"required"`
-	PasteTTL        time.Duration `json:"ttl"`
-	PasteVisibility string        `json:"visibility_access_type" validate:"omitempty,oneof='public private'"`
-	PasteContent    string        `json:"content" validate:"required,min=8"`
+	PasteTitle      string `json:"title" validate:"required"`
+	PasteTTL        string `json:"ttl"`
+	PasteVisibility string `json:"visibility" validate:"omitempty,oneof=public private"`
+	PasteContent    string `json:"content" validate:"required,min=8"`
+	PastePassword   string `json:"password" validate:"omitempty,min=4,max=16"`
+}
+
+type CreatePasteResponse struct {
+	PasteID string `json:"paste_id"`
+}
+
+type GetUsersPastesInput struct {
+	Duration      string `json:"duration"`
+	Offset        int    `json:"offset"`
+	Limit         int    `json:"limit"`
+	SortParameter string `json:"sort_param"`
+	Desc          bool   `json:"desc"`
+}
+
+type GetPasteInput struct {
+	PastePassword string `json:"password"`
 }
 
 type GetPasteResponse struct {
@@ -48,33 +62,59 @@ func (h *Handler) createPaste(c echo.Context) error {
 		errors := err.(validator.ValidationErrors)
 		return errors
 	}
+	var expiresAt time.Time
+	if input.PasteTTL != "" {
+		ttl, err := time.ParseDuration(input.PasteTTL)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, "ttl must be in time.Duration format")
+		}
+		if ttl < 0 {
+			return c.JSON(http.StatusBadRequest, "ttl must be positive duration")
+		}
+		expiresAt = time.Now().Add(ttl)
+	}
+	fmt.Println(expiresAt)
 
 	paste := domain.Paste{
 		Title:      input.PasteTitle,
 		CreatedAt:  time.Now(),
-		TTL:        input.PasteTTL,
+		ExpiresAt:  expiresAt,
 		Visibility: input.PasteVisibility,
+		Password: pgtype.Text{
+			String: input.PastePassword,
+			Status: pgtype.Present,
+		},
 	}
 
 	pasteID, err := h.services.Pastes.CreatePaste(c.Request().Context(), userID, paste, []byte(input.PasteContent))
 	if err != nil {
 		return err
 	}
-	// Service call
 	fmt.Println(pasteID)
 
-	return c.NoContent(http.StatusOK)
+	return c.JSON(http.StatusOK, CreatePasteResponse{pasteID})
 }
 
 func (h *Handler) getPaste(c echo.Context) error {
-	userID, _ := c.Get("userID").(int)
+
+	var (
+		userID  int
+		pasteID uuid.UUID
+		input   GetPasteInput
+		err     error
+	)
+	userID, _ = c.Get("userID").(int)
 	pasteIDstr := c.Param("id")
-	pasteID, err := uuid.Parse(pasteIDstr)
+	pasteID, err = uuid.Parse(pasteIDstr)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, "id should be valid uuid")
 	}
 
-	paste, content, err := h.services.GetPasteByID(c.Request().Context(), pasteID, userID)
+	if err = c.Bind(&input); err != nil {
+		return err
+	}
+
+	paste, content, err := h.services.GetPasteByID(c.Request().Context(), pasteID, userID, input.PastePassword)
 	if err != nil {
 		return err
 	}
@@ -91,7 +131,35 @@ func (h *Handler) getPaste(c echo.Context) error {
 
 func (h *Handler) getUsersPastes(c echo.Context) error {
 	userID := c.Get("userID").(int)
-	pastes, err := h.services.Pastes.GetUsersPastes(c.Request().Context(), userID)
+	var (
+		input GetUsersPastesInput
+		err   error
+	)
+
+	if err = c.Bind(&input); err != nil {
+		return err
+	}
+
+	var createdAtFilter time.Time
+	if input.Duration != "" {
+		duration, err := time.ParseDuration(input.Duration)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, "duration must be a valid duration, i.e. 2m")
+		}
+		if duration < 0 {
+			return c.JSON(http.StatusBadRequest, "ttl must be positive duration")
+		}
+		createdAtFilter = time.Now().Add(-duration)
+	}
+
+	filters := domain.PasteFilters{
+		CreatedAtFilter: createdAtFilter,
+		SortBy:          input.SortParameter,
+		Desc:            input.Desc,
+		Limit:           input.Limit,
+		Offset:          input.Offset,
+	}
+	pastes, err := h.services.Pastes.GetUsersPastes(c.Request().Context(), userID, filters)
 	if err != nil {
 		return err
 	}
@@ -99,5 +167,16 @@ func (h *Handler) getUsersPastes(c echo.Context) error {
 }
 
 func (h *Handler) deletePaste(c echo.Context) error {
-	return nil
+	fmt.Println("hel")
+	userID, _ := c.Get("userID").(int)
+	pasteIDstr := c.Param("id")
+	pasteID, err := uuid.Parse(pasteIDstr)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, "id should be valid uuid")
+	}
+	err = h.services.Pastes.DeletePasteByID(c.Request().Context(), pasteID, userID)
+	if err != nil {
+		return err
+	}
+	return c.NoContent(http.StatusOK)
 }

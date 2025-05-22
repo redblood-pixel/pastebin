@@ -8,22 +8,18 @@ import (
 )
 
 type Config struct {
-	Endpoint        string
-	AccessKey       string
-	SecretAccessKey string
-	UseSSL          bool
+	Endpoint        string `yaml:"endpoint"`
+	AccessKey       string `yaml:"access_key"`
+	SecretAccessKey string `yaml:"secret_key"`
+	UseSecure       bool   `yaml:"use_secure"`
 }
 
-func Connect() (*minio.Client, error) {
-	endpoint := "localhost:9000"
-	accessKeyID := "BPYUnB5lsb2sR8OKZYcL"
-	secretAccessKey := "iKScGSBikEX4H4EBfX7PacXTaXfUA7hOmenpVm0S"
-	useSSL := false
+func Connect(cfg *Config) (*minio.Client, error) {
 
 	// Initialize minio client object.
-	minioClient, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
-		Secure: useSSL,
+	minioClient, err := minio.New(cfg.Endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretAccessKey, ""),
+		Secure: cfg.UseSecure,
 	})
 	if err != nil {
 		log.Println(err)

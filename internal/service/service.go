@@ -19,8 +19,9 @@ type Users interface {
 
 type Pastes interface {
 	CreatePaste(ctx context.Context, userID int, paste domain.Paste, data []byte) (string, error)
-	GetUsersPastes(ctx context.Context, userID int) ([]domain.Paste, error)
-	GetPasteByID(ctx context.Context, pasteID uuid.UUID, userID int) (domain.Paste, []byte, error)
+	GetUsersPastes(ctx context.Context, userID int, filters domain.PasteFilters) ([]domain.Paste, error)
+	GetPasteByID(ctx context.Context, pasteID uuid.UUID, userID int, pastePassword string) (domain.Paste, []byte, error)
+	DeletePasteByID(ctx context.Context, pasteID uuid.UUID, userID int) error
 }
 
 type Service struct {
@@ -38,6 +39,6 @@ type Deps struct {
 func New(deps Deps) *Service {
 	return &Service{
 		Users:  NewUserService(deps.Postgres, deps.TokenManager, deps.Repository.Database),
-		Pastes: NewPastesService(deps.Postgres, deps.Repository),
+		Pastes: NewPastesService(deps.Repository),
 	}
 }

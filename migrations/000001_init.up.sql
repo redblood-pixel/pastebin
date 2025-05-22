@@ -27,9 +27,6 @@ CREATE TABLE tokens(
 DROP TYPE IF EXISTS access_type;
 create type access_type as enum ('public', 'private');
 
-/* TODO - create filters for pastes
-   maybe it needs to create new table
- */
 create table pastes(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title varchar(256) not null,
@@ -37,7 +34,19 @@ create table pastes(
     expires_at timestamptz not null,
     visibility access_type not null, 
     last_visited timestamptz default now() not null,
+    burn_after_read BOOLEAN NOT NULL default FALSE,
     user_id integer references users(id)
 );
+
+create table pastes_passwords(
+    id SERIAL PRIMARY KEY,
+    paste_id UUID REFERENCES pastes(id) ON DELETE CASCADE, -- need testing
+    password_hashed VARCHAR(255) not null
+);
+
+create index idx_pastes_userid ON pastes(user_id);
+create index idx_pastes_created_at on pastes(created_at DESC);
+
+create index idx_pastes_passwords ON pastes_passwords(paste_id);
 
 COMMIT;
